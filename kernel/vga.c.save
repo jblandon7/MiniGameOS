@@ -1,0 +1,59 @@
+#include "vga.h"
+
+#define VGA_WIDTH 80							// Have the row or the Width be 80 bits long
+#define VGA_HEIGHT 25							// 
+#define VGA_MEMORY ((volatile unsigned short*)0xB8000)			// Special Video Graphic Array Memory that controlc what appears on screen 
+
+static int row = 0;							// Row array index
+static int col = 0;							// Column array index
+static unsigned char color = 0x0F;					// Color of the text on screen 
+
+// Displays charachter and color on screen i.e smashes two together for display 
+static unsigned short make_vga_entry(char c, unsigned char color) {
+    return (unsigned short)c | ((unsigned short)color << 8);
+}
+
+// Clears the whole screen, goes through whole array and makes it blank 
+void vga_clear(void) {
+    int r;
+    int c;
+
+    for (r = 0; r < VGA_HEIGHT; r++) {
+        for (c = 0; c < VGA_WIDTH; c++) {
+            VGA_MEMORY[r * VGA_WIDTH + c] = make_vga_entry(' ', color);
+        }
+    }
+
+    row = 0;
+    col = 0;
+}
+
+// Print each character at a time and move it forward
+void vga_put_char(char c) {
+    if (c == '\n') {
+        row++;
+        col = 0;
+        return;
+    }
+
+    VGA_MEMORY[row * VGA_WIDTH + col] = make_vga_entry(c, color);
+    col++;
+
+    if (col >= VGA_WIDTH) {
+        col = 0;
+        row++;
+    }
+
+    if (row >= VGA_HEIGHT) {
+        row = 0;
+    }
+}
+
+void vga_print(const char* str) {
+    int i = 0;
+
+    while (str[i] != '\0') {
+        vga_put_char(str[i]);
+        i++;
+    }
+}
