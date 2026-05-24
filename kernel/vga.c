@@ -27,6 +27,16 @@ void vga_clear(void) {
     col = 0;
 }
 
+void vga_put_at(char c, int x, int y, unsigned char color) {
+    if (x < 0 || x >= VGA_WIDTH || y < 0 || y >= VGA_HEIGHT) {
+        return;
+    }
+
+    VGA_MEMORY[y * VGA_WIDTH + x] = make_vga_entry(c, color);
+}
+
+
+
 // Function writes one character at a time
 void vga_put_char(char c) {
     if (c == '\n') {							// IF character is newline start a new row and the first index
@@ -35,7 +45,7 @@ void vga_put_char(char c) {
         return;
     }
 
-    VGA_MEMORY[row * VGA_WIDTH + col] = make_vga_entry(c, color);	// At this index write this character and this color
+    vga_put_at(c, col, row, color);	// At this index write this character and this color
     col++;								// Move forward one
 
     if (col >= VGA_WIDTH) {						// If column location bigger than width move to the next row (line is full move to the next line)

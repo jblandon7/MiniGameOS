@@ -6,16 +6,24 @@ section .multiboot
     dd -(0x1BADB002 + 0x00)                    ; security checksum, pswd + flag + checksum must equal 0 or else it wont run
 
 
-section .text					; Where CPU instructions go
+section .bss					; Uninitialized memory/storage
+align 16
+stack_bottom:
+	resb 16384
+stack_top:
+
+section .text					;where CPU instructions go
 global start					; Mark of the kernel entry point visible to linker
 extern kernel_main				; kernel_main is defined in another file, kernel.c
 
-; Where the kernel starts running
+; Where CPU instructions start
 start:
+    mov esp, stack_top
     call kernel_main				; Assembly hands control of the C function kernel_main()
 
 
 ; Stop for when kernel main finishes
 hang:
+    cli
     hlt						; Tells the CPU to go to sleep until interrupt wakes it up
     jmp hang					; Loop back to tell the CPU to go back to sleep
