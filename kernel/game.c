@@ -30,8 +30,7 @@ static int prev_a;
 static int prev_s;
 static int prev_d;
 
-void game_init(void) {
-    
+void game_init(int game_number) {
     prev_w = 0;
     prev_a = 0;
     prev_s = 0;
@@ -47,15 +46,20 @@ void game_init(void) {
     old_player_y = player_y;
     old_enemy_x = enemy_x;
     old_enemy_y = enemy_y;
-    
+
     score = 0;
     game_over = 0;
     vga_clear();
-    vga_print("MiniGameOS - Polling 2D Game\n");
+
+    if (game_number == 2) {
+        vga_print("MiniGameOS - Game 2\n");
+    } else {
+        vga_print("MiniGameOS - Game 1\n");
+    }
+
     vga_print("WASD to move. Avoid X.\n");
 
     draw_border();
-
 }
 
 static void draw_border(void) {
@@ -85,6 +89,11 @@ static void clear_game_area(void) {
 }
 
 void game_update(void) {
+    int w;
+    int a;
+    int s;
+    int d;
+
     keyboard_poll();
 
     old_player_x = player_x;
@@ -96,36 +105,31 @@ void game_update(void) {
         return;
     }
 
-
-    int w;
-    int a;
-    int s;
-    int d;
-
     w = keyboard_is_down(KEY_W);
     a = keyboard_is_down(KEY_A);
     s = keyboard_is_down(KEY_S);
     d = keyboard_is_down(KEY_D);
-	    if (w && !prev_w && player_y > 1) {
-	    player_y--;
-	}
 
-	if (s && !prev_s && player_y < GAME_HEIGHT - 2) {
-	    player_y++;
-	}
+    if (w && !prev_w && player_y > 1) {
+        player_y--;
+    }
 
-	if (a && !prev_a && player_x > 1) {
-	    player_x--;
-	}
+    if (s && !prev_s && player_y < GAME_HEIGHT - 2) {
+        player_y++;
+    }
 
-	if (d && !prev_d && player_x < GAME_WIDTH - 2) {
-    	player_x++;
-	}
+    if (a && !prev_a && player_x > 1) {
+        player_x--;
+    }
 
-	prev_w = w;
-	prev_a = a;
-	prev_s = s;
-	prev_d = d;
+    if (d && !prev_d && player_x < GAME_WIDTH - 2) {
+        player_x++;
+    }
+
+    prev_w = w;
+    prev_a = a;
+    prev_s = s;
+    prev_d = d;
 
 /*
     if (keyboard_is_down(KEY_W) && player_y > 1) {
@@ -154,14 +158,15 @@ void game_update(void) {
             enemy_y = 1;
         }
     }
-	*/
+*/
 
     if (player_x == enemy_x && player_y == enemy_y) {
         game_over = 1;
     }
-	
+
     // score++;
 }
+
 void game_draw(void) {
     //vga_clear();
 
@@ -199,6 +204,10 @@ void game_draw(void) {
     vga_put_at('X', GAME_LEFT + enemy_x, GAME_TOP + enemy_y, 0x0C);
 }
 
+int game_is_over(void) {
+    return game_over;
+}
+
 void game_run_demo(void) {
     unsigned int last_tick;
 
@@ -208,9 +217,8 @@ void game_run_demo(void) {
         if (timer_get_ticks() != last_tick) {
             last_tick = timer_get_ticks();
 
-                game_update();
-                game_draw();
-            
+            game_update();
+            game_draw();
         }
     }
 }
