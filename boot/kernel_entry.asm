@@ -1,14 +1,9 @@
 section .multiboot
     ; GRUB checks this section to see if this file is a bootable kernel
 
-    dd 0x1BADB002                              ; Password telling grub that this is a bootable kernel
+    dd 0x1BADB002                              ; Password telling GRUB this is a bootable kernel
     dd 0x07                                    ; Align modules, request memory info, and ask for graphics mode
     dd -(0x1BADB002 + 0x07)                    ; magic + flags + checksum must equal 0
-    dd 0                                       ; Header address, unused with these flags
-    dd 0                                       ; Load address, unused with these flags
-    dd 0                                       ; Load end address, unused with these flags
-    dd 0                                       ; BSS end address, unused with these flags
-    dd 0                                       ; Entry address, unused with these flags
     dd 0                                       ; 0 means linear framebuffer graphics mode
     dd 640                                     ; Preferred framebuffer width
     dd 480                                     ; Preferred framebuffer height
