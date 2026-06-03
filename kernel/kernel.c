@@ -1,4 +1,5 @@
 #include "vga.h"
+#include "graphics.h"
 #include "idt.h"
 #include "timer.h"
 #include "game.h"
@@ -6,27 +7,20 @@
 extern void enable_interrupts(void);
 
 #define KEY_W 0x11
+#define KEY_A 0x1E
 #define KEY_S 0x1F
+#define KEY_D 0x20
 #define KEY_ENTER 0x1C
 #define KEY_SPACE 0x39
 #define KEY_1 0x02
 #define KEY_2 0x03
-#define KEY_L 0x26
-#define KEY_O 0x18
 
-#define START_ACTION_GAME_1 1
-#define START_ACTION_GAME_2 2
-#define START_ACTION_LOG 3
-#define START_ACTION_OPTIMIZER 4
+#define MAIN_MENU_GAME_1 0
+#define MAIN_MENU_GAME_2 1
+#define MAIN_MENU_EXIT 2
 
 #define GAME_OVER_PLAY_AGAIN 0
 #define GAME_OVER_EXIT 1
-
-#define COLOR_BLACK 0x00
-#define COLOR_DARK_GRAY 0x08
-#define COLOR_GRAY 0x07
-#define COLOR_RED 0x04
-#define COLOR_LIGHT_RED 0x0C
 
 static void write_text_at(const char* text, int x, int y, unsigned char color) {
     int i;
@@ -38,150 +32,176 @@ static void write_text_at(const char* text, int x, int y, unsigned char color) {
     }
 }
 
-static void draw_box(int left, int top, int width, int height, unsigned char color) {
-    int x;
-    int y;
+static void draw_text_launcher_card(int x, int y, char icon, const char* title, int selected) {
+    unsigned char border_color;
 
-    for (x = 0; x < width; x++) {
-        vga_put_at('#', left + x, top, color);
-        vga_put_at('#', left + x, top + height - 1, color);
+    if (selected) {
+        border_color = 0x0C;
+    } else {
+        border_color = 0x08;
     }
 
-    for (y = 0; y < height; y++) {
-        vga_put_at('#', left, top + y, color);
-        vga_put_at('#', left + width - 1, top + y, color);
-    }
+    vga_put_at('+', x, y, border_color);
+    vga_put_at('+', x + 12, y, border_color);
+    vga_put_at('+', x, y + 6, border_color);
+    vga_put_at('+', x + 12, y + 6, border_color);
+
+    vga_put_at(icon, x + 6, y + 3, 0x0C);
+    write_text_at(title, x + 3, y + 8, 0x0F);
 }
 
-static void fill_box(int left, int top, int width, int height, unsigned char color) {
-    int x;
-    int y;
+static void draw_graphics_card(int x, int y, char icon, const char* title, int selected) {
+    unsigned int border_color;
+    unsigned int fill_color;
 
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
-            vga_put_at(' ', left + x, top + y, color);
+    fill_color = GFX_ARMOR_GRAY;
+
+    if (selected) {
+        border_color = GFX_DEEP_RED;
+    } else {
+        border_color = GFX_SMOKY_GRAY;
+    }
+
+    draw_rect(x + 8, y + 10, 190, 190, GFX_CHARCOAL);
+    draw_rect(x, y, 190, 190, fill_color);
+    draw_border_rect(x, y, 190, 190, 5, border_color);
+    draw_rect(x + 18, y + 18, 154, 112, GFX_BURGUNDY);
+    draw_border_rect(x + 18, y + 18, 154, 112, 3, GFX_BLOOD_RED);
+
+    graphics_draw_char(x + 72, y + 44, icon, GFX_LIGHT_TEXT, 12);
+    graphics_draw_text(x + 48, y + 146, title, GFX_LIGHT_TEXT, 3);
+}
+
+static void draw_graphics_exit_button(int selected) {
+    unsigned int border_color;
+
+    if (selected) {
+        border_color = GFX_DEEP_RED;
+    } else {
+        border_color = GFX_SMOKY_GRAY;
+    }
+
+    draw_rect(230, 355, 180, 56, GFX_ARMOR_GRAY);
+    draw_border_rect(230, 355, 180, 56, 4, border_color);
+    graphics_draw_text(266, 373, "Exit Game", GFX_LIGHT_TEXT, 3);
+}
+
+static void draw_main_menu(int selected_option) {
+    if (!graphics_is_available()) {
+        vga_clear();
+        write_text_at("MINIgame OS", 34, 3, 0x0C);
+        draw_text_launcher_card(20, 8, '@', "Game 1", selected_option == MAIN_MENU_GAME_1);
+        draw_text_launcher_card(47, 8, 'X', "Game 2", selected_option == MAIN_MENU_GAME_2);
+
+        if (selected_option == MAIN_MENU_EXIT) {
+            write_text_at("> Exit Game", 34, 20, 0x0C);
+        } else {
+            write_text_at("  Exit Game", 34, 20, 0x0F);
         }
+
+        write_text_at("A/D or W/S to move. Enter or Space to select.", 15, 23, 0x08);
+        return;
     }
+
+    clear_screen(GFX_BLACK);
+    draw_rect(0, 0, graphics_width(), 60, GFX_CHARCOAL);
+    draw_rect(0, 60, graphics_width(), 4, GFX_BURGUNDY);
+
+    graphics_draw_text(188, 34, "MINIgame OS", GFX_LIGHT_TEXT, 4);
+    graphics_draw_text(130, 86, "SELECT A GAME", GFX_SMOKY_GRAY, 2);
+
+    draw_graphics_card(105, 125, '@', "Game 1", selected_option == MAIN_MENU_GAME_1);
+    draw_graphics_card(345, 125, 'X', "Game 2", selected_option == MAIN_MENU_GAME_2);
+    draw_graphics_exit_button(selected_option == MAIN_MENU_EXIT);
+
+    graphics_draw_text(92, 440, "A/D OR W/S MOVE   ENTER/SPACE SELECT   1 GAME 1   2 GAME 2", GFX_SMOKY_GRAY, 2);
 }
 
-static void draw_game_card(int left, int top, char icon, const char* title) {
-    fill_box(left + 1, top + 1, 13, 7, COLOR_BLACK);
-    draw_box(left + 1, top + 1, 13, 7, COLOR_DARK_GRAY);
-    draw_box(left, top, 13, 7, COLOR_RED);
-
-    vga_put_at(icon, left + 6, top + 3, COLOR_LIGHT_RED);
-    write_text_at(title, left + 3, top + 8, COLOR_GRAY);
-}
-
-static void draw_start_screen(void) {
-    vga_clear();
-
-    write_text_at("MINI", 34, 3, COLOR_RED);
-    write_text_at("game OS", 38, 3, COLOR_GRAY);
-
-    draw_game_card(20, 8, '@', "Game 1");
-    draw_game_card(47, 8, 'X', "Game 2");
-
-    write_text_at("1 Start/Resume Game 1", 12, 20, COLOR_GRAY);
-    write_text_at("2 Start/Resume Game 2", 43, 20, COLOR_GRAY);
-    write_text_at("L AI Decision Log", 12, 22, COLOR_RED);
-    write_text_at("O AI Memory Optimizer", 43, 22, COLOR_RED);
-}
-
-static void wait_for_menu_return(void) {
+static int get_main_menu_choice(void) {
+    int selected_option;
+    int prev_w;
+    int prev_a;
+    int prev_s;
+    int prev_d;
     int prev_enter;
     int prev_space;
-
-    keyboard_poll();
-    prev_enter = keyboard_is_down(KEY_ENTER);
-    prev_space = keyboard_is_down(KEY_SPACE);
-
-    while (1) {
-        int enter;
-        int space;
-
-        keyboard_poll();
-
-        enter = keyboard_is_down(KEY_ENTER);
-        space = keyboard_is_down(KEY_SPACE);
-
-        if ((enter && !prev_enter) || (space && !prev_space)) {
-            return;
-        }
-
-        prev_enter = enter;
-        prev_space = space;
-    }
-}
-
-static void show_ai_decision_log(void) {
-    vga_clear();
-
-    write_text_at("AI Decision Log", 31, 5, COLOR_RED);
-    write_text_at("No AI decisions recorded yet.", 24, 10, COLOR_GRAY);
-    write_text_at("Press Enter or Space to return.", 22, 15, COLOR_DARK_GRAY);
-
-    wait_for_menu_return();
-}
-
-static void show_ai_memory_optimizer(void) {
-    vga_clear();
-
-    write_text_at("AI Memory Optimizer", 29, 5, COLOR_RED);
-    write_text_at("Memory optimizer ready.", 28, 10, COLOR_GRAY);
-    write_text_at("No memory cleanup needed yet.", 25, 12, COLOR_GRAY);
-    write_text_at("Press Enter or Space to return.", 22, 15, COLOR_DARK_GRAY);
-
-    wait_for_menu_return();
-}
-
-static int get_start_action(void) {
     int prev_1;
     int prev_2;
-    int prev_l;
-    int prev_o;
 
+    selected_option = MAIN_MENU_GAME_1;
     keyboard_poll();
+    prev_w = keyboard_is_down(KEY_W);
+    prev_a = keyboard_is_down(KEY_A);
+    prev_s = keyboard_is_down(KEY_S);
+    prev_d = keyboard_is_down(KEY_D);
+    prev_enter = keyboard_is_down(KEY_ENTER);
+    prev_space = keyboard_is_down(KEY_SPACE);
     prev_1 = keyboard_is_down(KEY_1);
     prev_2 = keyboard_is_down(KEY_2);
-    prev_l = keyboard_is_down(KEY_L);
-    prev_o = keyboard_is_down(KEY_O);
 
-    draw_start_screen();
+    draw_main_menu(selected_option);
 
     while (1) {
+        int w;
+        int a;
+        int s;
+        int d;
+        int enter;
+        int space;
         int key_1;
         int key_2;
-        int key_l;
-        int key_o;
 
         keyboard_poll();
 
+        w = keyboard_is_down(KEY_W);
+        a = keyboard_is_down(KEY_A);
+        s = keyboard_is_down(KEY_S);
+        d = keyboard_is_down(KEY_D);
+        enter = keyboard_is_down(KEY_ENTER);
+        space = keyboard_is_down(KEY_SPACE);
         key_1 = keyboard_is_down(KEY_1);
         key_2 = keyboard_is_down(KEY_2);
-        key_l = keyboard_is_down(KEY_L);
-        key_o = keyboard_is_down(KEY_O);
 
         if (key_1 && !prev_1) {
-            return START_ACTION_GAME_1;
+            return MAIN_MENU_GAME_1;
         }
 
         if (key_2 && !prev_2) {
-            return START_ACTION_GAME_2;
+            return MAIN_MENU_GAME_2;
         }
 
-        if (key_l && !prev_l) {
-            return START_ACTION_LOG;
+        if ((w && !prev_w) || (a && !prev_a)) {
+            selected_option--;
+
+            if (selected_option < MAIN_MENU_GAME_1) {
+                selected_option = MAIN_MENU_EXIT;
+            }
+
+            draw_main_menu(selected_option);
         }
 
-        if (key_o && !prev_o) {
-            return START_ACTION_OPTIMIZER;
+        if ((s && !prev_s) || (d && !prev_d)) {
+            selected_option++;
+
+            if (selected_option > MAIN_MENU_EXIT) {
+                selected_option = MAIN_MENU_GAME_1;
+            }
+
+            draw_main_menu(selected_option);
         }
 
+        if ((enter && !prev_enter) || (space && !prev_space)) {
+            return selected_option;
+        }
+
+        prev_w = w;
+        prev_a = a;
+        prev_s = s;
+        prev_d = d;
+        prev_enter = enter;
+        prev_space = space;
         prev_1 = key_1;
         prev_2 = key_2;
-        prev_l = key_l;
-        prev_o = key_o;
     }
 }
 
@@ -286,29 +306,29 @@ static void show_exit_screen(void) {
     write_text_at("System halted.", 32, 12, 0x07);
 }
 
-void kernel_main(void) {
-    int start_action;
+void kernel_main(unsigned int multiboot_magic, unsigned int multiboot_info_addr) {
+    int menu_choice;
+
+    graphics_init(multiboot_magic, multiboot_info_addr);
 
     //idt_init();
     //timer_init(50);
 
     while (1) {
-        start_action = get_start_action();
+        menu_choice = get_main_menu_choice();
 
-        if (start_action == START_ACTION_GAME_1) {
+        if (menu_choice == MAIN_MENU_GAME_1) {
             run_game(1);
         }
 
-        if (start_action == START_ACTION_GAME_2) {
+        if (menu_choice == MAIN_MENU_GAME_2) {
             run_game(2);
         }
 
-        if (start_action == START_ACTION_LOG) {
-            show_ai_decision_log();
-        }
-
-        if (start_action == START_ACTION_OPTIMIZER) {
-            show_ai_memory_optimizer();
+        if (menu_choice == MAIN_MENU_EXIT) {
+            show_exit_screen();
+            while (1) {
+            }
         }
     }
 }
